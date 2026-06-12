@@ -10,3 +10,22 @@ Accept: application/json
 POST {{TmsApi_HostAddress}}/api/enrollments?studentId=cs-1&courseCode=CS-101
 ###
 POST {{TmsApi_HostAddress}}/api/enrollments?studentId=cs-1&courseCode=CS-101
+###
+GET {{TmsApi_HostAddress}}/api/enrollments
+
+###
+POST {{TmsApi_HostAddress}}/api/enrollments
+Content-Type: application/json
+
+{
+   "studentId":"S-001","courseCode":"CS-101"}
+
+###
+GET {{TmsApi_HostAddress}}/api/enrollments/3bcf3102
+###
+DELETE {{TmsApi_HostAddress}}/api/enrollments/3bcf3102
+###
+GET {{TmsApi_HostAddress}}/api/enrollments/3bcf3102
+###
+GET {{TmsApi_HostAddress}}/api/error
+
