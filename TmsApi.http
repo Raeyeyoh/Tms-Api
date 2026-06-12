@@ -6,3 +6,7 @@ Accept: application/json
 ###
 GET {{TmsApi_HostAddress}}/api/assessments/results
 Accept: application/json
+###
+POST {{TmsApi_HostAddress}}/api/enrollments?studentId=cs-1&courseCode=CS-101
+###
+POST {{TmsApi_HostAddress}}/api/enrollments?studentId=cs-1&courseCode=CS-101
