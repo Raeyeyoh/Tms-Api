@@ -11,6 +11,9 @@ builder.Services.AddAuthorization();
 //builder.Services.AddExceptionHandler();
 builder.Services.AddSingleton<EnrollmentWorker>();
 builder.Services.AddSingleton<IEnrollmentService, EnrollmentService>();
+builder.Services.AddSingleton<IStudentService, StudentService>();
+builder.Services.AddSingleton<ICourseService, CourseService>();
+
 builder.Services.AddOptions<PaymentOptions>().BindConfiguration("Payments")
 .ValidateDataAnnotations()
 .ValidateOnStart();
@@ -56,6 +59,10 @@ if (app.Environment.IsDevelopment())
 }
 if (app.Environment.IsProduction())
 {
+    Console.WriteLine("Running in production mode");
     app.UseExceptionHandler();
 }
+//app.UseRateLimiter(4);
+
 app.Run();
+
