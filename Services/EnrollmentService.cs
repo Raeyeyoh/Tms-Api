@@ -1,3 +1,4 @@
+using TmsApi.Models;
 public interface IEnrollmentService
 {
     Task<EnrollmentRecord> EnrollAsync(string studentId, string courseCode);
@@ -32,8 +33,7 @@ public class EnrollmentService : IEnrollmentService
         var record = new EnrollmentRecord(id, studentId, courseCode, DateTime.UtcNow);
         _store[id] = record;
         _logger.LogInformation(
-        "Enrolled {StudentId} in {CourseCode} record {EnrollmentId}",
-        studentId, courseCode, id);
+        "Enrolled {StudentId} in {CourseCode} record {EnrollmentId}", studentId, courseCode, id);
         return Task.FromResult(record);
     }
     public Task<EnrollmentRecord?> GetByIdAsync(string id)
@@ -61,9 +61,5 @@ public class EnrollmentService : IEnrollmentService
         return Task.FromResult(removed);
     }
 }
-public record EnrollmentRecord(
-string Id,
-string StudentId,
-string CourseCode,
-DateTime EnrolledAt);
+
 public class TmsDatabaseException(string message) : Exception(message);
