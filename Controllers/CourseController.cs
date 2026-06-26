@@ -12,24 +12,24 @@ public class CourseController(ICourseService courseService) : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(string id)
+    public async Task<IActionResult> GetById(int id)
     {
-        var record = await courseService.GetByIdAsync(id);
-        return record is not null ? Ok(record) : NotFound();
+        var course = await courseService.GetByIdAsync(id);
+        return course is not null ? Ok(course) : NotFound();
     }
 
     [HttpPost]
     public async Task<IActionResult> AddCourse([FromBody] CreateAddCourseRequest request)
     {
         var course = await courseService.AddCourseAsync(request.courseCode, request.title, request.capacity, request.enrolledCount);
-        return CreatedAtAction(nameof(GetById), new { id = course.id }, course);
+        return CreatedAtAction(nameof(GetById), new { id = course.Id }, course);
     }
     public record CreateAddCourseRequest(string courseCode, string title, int capacity, int enrolledCount);
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(string coursecode)
+    public async Task<IActionResult> Delete(int id)
     {
-        var deleted = await courseService.DeleteAsync(coursecode);
+        var deleted = await courseService.DeleteAsync(id);
         return deleted ? NoContent() : NotFound();
     }
 
