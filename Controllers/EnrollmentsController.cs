@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 [ApiController]
 [Route("api/enrollments")]
@@ -12,25 +13,31 @@ public class EnrollmentsController(IEnrollmentService enrollmentService) : Contr
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(string id)
+    public async Task<IActionResult> GetById(int id)
     {
-        var record = await enrollmentService.GetByIdAsync(id);
-        return record is not null ? Ok(record) : NotFound();
+        var enrollment = await enrollmentService.GetByIdAsync(id);
+        return enrollment is not null ? Ok(enrollment) : NotFound();
     }
 
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateEnrollmentRequest request)
     {
-        var record = await enrollmentService.EnrollAsync(request.StudentId, request.CourseCode);
-        return CreatedAtAction(nameof(GetById), new { id = record.Id }, record);
+        var enrollment = await enrollmentService.EnrollAsync(request.StudentId, request.CourseId);
+        return CreatedAtAction(nameof(GetById), new { id = enrollment.Id }, enrollment);
     }
-    public record CreateEnrollmentRequest(string StudentId, string CourseCode);
+    public record CreateEnrollmentRequest(int StudentId, int CourseId);
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(string id)
+    public async Task<IActionResult> Delete(int id)
     {
         var deleted = await enrollmentService.DeleteAsync(id);
         return deleted ? NoContent() : NotFound();
+    }
+    [HttpPut]
+    public async Task<bool> updatebulk(CancellationToken ct)
+    {
+        var enrollment = await enrollmentService.UpdateBulk(ct);
+        return enrollment;
     }
 }
