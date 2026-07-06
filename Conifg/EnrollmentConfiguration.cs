@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TmsApi.Entities;
+namespace TmsApi.Conifg;
 
 public class EnrollmentConfiguration : IEntityTypeConfiguration<Enrollment>
 {

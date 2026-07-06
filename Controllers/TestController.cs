@@ -160,7 +160,6 @@ public class TestController(TmsDbContext context) : ControllerBase
         foreach (var r in report)
             Console.WriteLine($"{r.Name}: {r.EnrollmentCount} enrollments");
     }
-    //Func<int, bool> sth = t => t > 10;
     [HttpGet("Stud2")]
 
     public async void Stud2()
