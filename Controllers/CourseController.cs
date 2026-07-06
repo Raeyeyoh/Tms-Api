@@ -1,30 +1,52 @@
 using Microsoft.AspNetCore.Mvc;
 
+using TmsApi.Dtos;
+namespace TmsApi.Controllers;
+
 [ApiController]
 [Route("api/courses")]
 public class CourseController(ICourseService courseService) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetCourses(
+[FromQuery] PagedRequest request, CancellationToken ct)
     {
-        var courses = await courseService.GetAllAsync();
-        return Ok(courses);
+
+        var result = await courseService.GetCoursesAsync(request, ct);
+        return Ok(result);
     }
 
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id)
+    [HttpGet("{id:int}", Name = nameof(GetCourseById))]
+    public async Task<IActionResult> GetCourseById(int id, CancellationToken ct)
     {
-        var course = await courseService.GetByIdAsync(id);
+
+        var course = await courseService.GetByIdAsync(id, ct);
         return course is not null ? Ok(course) : NotFound();
     }
 
     [HttpPost]
-    public async Task<IActionResult> AddCourse([FromBody] CreateAddCourseRequest request)
+    public async Task<IActionResult> CreateCourse(CreateCourseRequest request, CancellationToken ct)
     {
-        var course = await courseService.AddCourseAsync(request.courseCode, request.title, request.capacity, request.enrolledCount);
-        return CreatedAtAction(nameof(GetById), new { id = course.Id }, course);
+
+        var sth = courseService.CodeExistsAsync(request.Code, ct);
+        if (sth.Result)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "Course code already exists",
+                Detail = $"A course with code '{request.Code}' is already registered.",
+                Status = StatusCodes.Status409Conflict
+
+            });
+        }
+
+        var result = await courseService.CreateAsync(request, ct);
+        return CreatedAtAction(nameof(GetCourseById), new
+        {
+            id = result.Id
+        }, result);
     }
-    public record CreateAddCourseRequest(string courseCode, string title, int capacity, int enrolledCount);
+
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)

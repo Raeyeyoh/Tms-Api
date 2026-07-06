@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TmsApi.Entities;
 
+namespace TmsApi.Conifg;
+
 public class StudentConfiguration : IEntityTypeConfiguration<Student>
 {
     public void Configure(EntityTypeBuilder<Student> b)
@@ -11,9 +13,9 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
         b.Property(s => s.RegistrationNumber).IsRequired().HasMaxLength(200);
 
         b.HasMany(s => s.Enrollments)
-.WithOne(s => s.Student)
-.HasForeignKey(s => s.StudentId)
-.OnDelete(DeleteBehavior.Restrict);
+            .WithOne(s => s.Student)
+            .HasForeignKey(s => s.StudentId)
+            .OnDelete(DeleteBehavior.Restrict);
         b.Property<DateTime>("LastUpdated");
         b.Property(s => s.Version).IsRowVersion();
         b.HasQueryFilter(s => !(s.IsDeleted));

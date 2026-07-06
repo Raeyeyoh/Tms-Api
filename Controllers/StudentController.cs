@@ -26,7 +26,7 @@ public class StudentController(IStudentService studentservice) : ControllerBase
     }
     public record CreatestudentRequest(int IdNo, string regno, string name, int age, decimal gpa);
 
-    [HttpDelete("{id}")]
+    [HttpDelete("archive/{id}")]
     public async Task<IActionResult> Delete(int id)
     {
         var deleted = await studentservice.DeleteStudentAsync(id);
@@ -44,10 +44,16 @@ public class StudentController(IStudentService studentservice) : ControllerBase
         decimal Gpa,
         uint Version);
     [HttpGet("deleted")]
-    public async Task<IActionResult> showdeleted()
+    public async Task<IActionResult> ShowDeleted()
     {
         var stu = await studentservice.ShowDeletedAsync();
         return Ok(stu);
+    }
+    [HttpDelete("{id}")]
+    public async Task<IActionResult?> SoftDelete(int id, CancellationToken ct)
+    {
+        var del = await studentservice.SoftDelteAsync(id, ct);
+        return del;
     }
 
 }
