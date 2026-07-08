@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 
 using TmsApi.Dtos;
+using TmsApi.Services;
+
 namespace TmsApi.Controllers;
 
 [ApiController]
@@ -28,8 +30,8 @@ public class CourseController(ICourseService courseService) : ControllerBase
     public async Task<IActionResult> CreateCourse(CreateCourseRequest request, CancellationToken ct)
     {
 
-        var sth = courseService.CodeExistsAsync(request.Code, ct);
-        if (sth.Result)
+        var course = courseService.CodeExistsAsync(request.Code, ct);
+        if (course.Result)
         {
             return Conflict(new ProblemDetails
             {

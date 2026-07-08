@@ -3,19 +3,21 @@ using Microsoft.EntityFrameworkCore;
 using TmsApi.Data;
 using TmsApi.Entities;
 using TmsApi.Models;
-using System.Linq;
-using System.Globalization;
+
+using TmsApi.Dtos;
 
 public interface IStudentService
 {
-    Task<Student> AddStudentAsync(int IdNo, string regno, string name, int age, decimal gpa);
+    Task<StudentResponseDto> CreateAsync(CreateStudentDto student, CancellationToken ct);
 
-    Task<Student?> GetByIdAsync(int id);
-    Task<IReadOnlyList<Student?>> GetAllStudentsAsync();
+    Task<StudentResponseDto?> GetByIdAsync(int id, CancellationToken ct);
+    Task<PagedResponse<StudentResponseDto>> GetStudentsAsync(PagedRequest request, CancellationToken ct);
     Task<bool> DeleteStudentAsync(int id);
     Task<bool> UpdateStudentAsync(int id, string name, decimal gpa, uint version, CancellationToken ct);
     Task<IActionResult?> SoftDelteAsync(int id, CancellationToken ct);
-    Task<IReadOnlyList<Student?>> ShowDeletedAsync();
+    Task<IReadOnlyList<StudentResponseDto?>> ShowDeletedAsync();
+    Task<bool> CodeExistsAsync(string registrationNumber, CancellationToken ct);
+
 
 }
 
@@ -33,40 +35,73 @@ public class StudentService : IStudentService
         _context = context;
     }
 
-    public async Task<Student> AddStudentAsync(int IdNo, string regno, string name, int age, decimal gpa)
+    public async Task<StudentResponseDto> CreateAsync(CreateStudentDto stud, CancellationToken ct)
     {
-        var existing = await _context.Students.FirstOrDefaultAsync(e => e.Id == IdNo);
-        if (existing is not null)
-        {
-            _logger.LogWarning(
-            "Duplicate student attempt {id} already exists", existing.Id);
-            return existing;
-        }
-        var student = new Student { RegistrationNumber = regno, Id = IdNo, Name = name, GPA = gpa };
-        await _context.Students.AddAsync(student);
-        await _context.SaveChangesAsync();
-        // _store[id] = record;
+
+        var student = new Student { RegistrationNumber = stud.RegistrationNumber, Name = stud.Name, GPA = stud.GPA };
+        await _context.Students.AddAsync(student, ct);
+        await _context.SaveChangesAsync(ct);
         _logger.LogInformation(
-        "added {studid } record {ID} ", IdNo, student.Id);
-        return student;
+        "added {studid }  {ID} ", student.Id, student.RegistrationNumber);
+        return (await GetByIdAsync(student.Id, ct))!;
     }
 
-    public async Task<IReadOnlyList<Student?>> GetAllStudentsAsync()
+    public async Task<PagedResponse<StudentResponseDto>> GetStudentsAsync(PagedRequest request, CancellationToken ct)
     {
-        IReadOnlyList<Student> all = await _context.Students.AsNoTracking().ToListAsync();
-        return all;
-    }
+        IQueryable<Student> query = _context.Students.AsNoTracking();
+        if (!(request.Search is null))
 
+            query = query.Where(s => EF.Functions.ILike(s.Name, $"%{request.Search}%") || EF.Functions.ILike(s.GPA.ToString(), $"%{request.Search}%"));
+        var totalCount = await query.CountAsync(ct);
 
-    public async Task<Student?> GetByIdAsync(int id)
-    {
-        var student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
-        if (student is null)
+        IQueryable<Student> sortedQuery;
+
+        switch (request.OrderBy)
         {
-            _logger.LogWarning("student {id} not found", id);
+            case "RegistrationNumber":
+                sortedQuery = request.Descending
+                    ? query.OrderByDescending(s => s.RegistrationNumber)
+                    : query.OrderBy(s => s.RegistrationNumber);
+                break;
+
+            case "GPA":
+                sortedQuery = request.Descending
+                    ? query.OrderByDescending(s => s.GPA)
+                    : query.OrderBy(s => s.GPA);
+                break;
+
+            default:
+                sortedQuery = request.Descending
+                    ? query.OrderByDescending(s => s.Name)
+                    : query.OrderBy(s => s.Name);
+                break;
         }
-        return student;
+
+
+        var items = await sortedQuery
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(s => new StudentResponseDto(
+                s.Id,
+                s.RegistrationNumber,
+                s.Name,
+                s.GPA))
+            .ToListAsync(ct);
+        return new PagedResponse<StudentResponseDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = request.Page,
+            PageSize = request.PageSize
+        };
+
+
     }
+
+
+    public Task<StudentResponseDto?> GetByIdAsync(int id, CancellationToken ct) => _context.Students.AsNoTracking().Where(s => s.Id == id).Select(s => new StudentResponseDto(s.Id, s.RegistrationNumber, s.Name, s.GPA)).FirstOrDefaultAsync(ct);
+
+
     public async Task<IActionResult?> SoftDelteAsync(int id, CancellationToken ct)
     {
         var student = await _context.Students.FirstOrDefaultAsync(s => s.Id == id, ct);
@@ -112,16 +147,21 @@ public class StudentService : IStudentService
             .Property("LastUpdated")
             .CurrentValue = DateTime.UtcNow;
         _context.Entry(student)
-.Property(s => s.Version)
-.OriginalValue = version;
+    .Property(s => s.Version)
+    .OriginalValue = version;
 
         await _context.SaveChangesAsync(ct);
         return true;
     }
 
-    public async Task<IReadOnlyList<Student?>> ShowDeletedAsync()
+    public async Task<IReadOnlyList<StudentResponseDto?>> ShowDeletedAsync()
     {
-        var students = await _context.Students.IgnoreQueryFilters().Where(s => s.IsDeleted == true).ToListAsync();
+        var students = await _context.Students.IgnoreQueryFilters().Where(s => s.IsDeleted == true).Select(s => new StudentResponseDto(s.Id, s.RegistrationNumber, s.Name, s.GPA)).ToListAsync();
         return students;
     }
+
+    public Task<bool> CodeExistsAsync(string registrationNumber, CancellationToken ct) =>
+        _context.Students.AsNoTracking().AnyAsync(s => s.RegistrationNumber == registrationNumber, ct);
+
+
 }

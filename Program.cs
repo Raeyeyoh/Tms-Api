@@ -8,6 +8,7 @@ using TmsApi.Models;
 using System.Linq;
 using TmsApi.Filters;
 using TmsApi.Persistence;
+using TmsApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using TmsApi.Dtos;
+using TmsApi.Services;
 
 namespace TmsApi.Controllers;
 
 [ApiController]
-[Route("api/enrollments")]
+[Route("api/courses/{courseId:int}/enrollments")]
 public class EnrollmentsController(ICourseService courseService, IEnrollmentService enrollmentService) : ControllerBase
 {
     [HttpGet]
@@ -47,7 +48,7 @@ public class EnrollmentsController(ICourseService courseService, IEnrollmentServ
         }
         var enrollment = await enrollmentService.CreateAsync(courseId, request, ct);
         return CreatedAtAction(nameof(GetEnrollment), new { id = enrollment.Id }, enrollment);
-        throw new NotImplementedException();
+        //throw new NotImplementedException();
     }
 
     [HttpDelete("{id}")]
