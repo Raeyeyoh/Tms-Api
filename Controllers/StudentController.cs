@@ -1,30 +1,46 @@
 using Microsoft.AspNetCore.Mvc;
+using TmsApi.Dtos;
 
 [ApiController]
 [Route("api/students")]
 public class StudentController(IStudentService studentservice) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetStudents([FromQuery] PagedRequest request, CancellationToken ct)
     {
-        var students = await studentservice.GetAllStudentsAsync();
+        var students = await studentservice.GetStudentsAsync(request, ct);
         return Ok(students);
     }
 
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id)
+    [HttpGet("{id:int}", Name = nameof(GetStudentById))]
+
+    public async Task<IActionResult> GetStudentById(int id, CancellationToken ct)
     {
-        var record = await studentservice.GetByIdAsync(id);
-        return record is not null ? Ok(record) : NotFound();
+        var student = await studentservice.GetByIdAsync(id, ct);
+        return student is not null ? Ok(student) : NotFound();
     }
 
     [HttpPost]
-    public async Task<IActionResult> AddStudentAsync([FromBody] CreatestudentRequest request)
+    public async Task<IActionResult> AddStudentAsync(RegisterStudentDto request, CancellationToken ct)
     {
-        var student = await studentservice.AddStudentAsync(request.IdNo, request.regno, request.name, request.age, request.gpa);
-        return CreatedAtAction(nameof(GetById), new { id = student.Id }, student);
+        var studentExists = await studentservice.CodeExistsAsync(request.RegistrationNumber, ct);
+        if (studentExists)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "Student registration number already exists",
+                Detail = $"A student with registration number '{request.RegistrationNumber}' is already registered.",
+                Status = StatusCodes.Status409Conflict
+
+
+            });
+        }
+
+        var student = await studentservice.CreateAsync(request, ct);
+        return CreatedAtAction(nameof(GetStudentById), new { id = student.Id }, student);
+
+
     }
-    public record CreatestudentRequest(int IdNo, string regno, string name, int age, decimal gpa);
 
     [HttpDelete("archive/{id}")]
     public async Task<IActionResult> Delete(int id)
