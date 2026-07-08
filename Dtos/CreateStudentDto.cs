@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 namespace TmsApi.Dtos;
 
-public record CreateStudentDto
+public record RegisterStudentDto
 {
     [Required, RegularExpression(@"^[A-Z]{3}-\d{3}$",
     ErrorMessage = "Code must follow the pattern XXX-000 (e.g., CSE-101).")]

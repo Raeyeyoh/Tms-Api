@@ -8,7 +8,7 @@ using TmsApi.Dtos;
 
 public interface IStudentService
 {
-    Task<StudentResponseDto> CreateAsync(CreateStudentDto student, CancellationToken ct);
+    Task<StudentResponseDto> CreateAsync(RegisterStudentDto student, CancellationToken ct);
 
     Task<StudentResponseDto?> GetByIdAsync(int id, CancellationToken ct);
     Task<PagedResponse<StudentResponseDto>> GetStudentsAsync(PagedRequest request, CancellationToken ct);
@@ -35,7 +35,7 @@ public class StudentService : IStudentService
         _context = context;
     }
 
-    public async Task<StudentResponseDto> CreateAsync(CreateStudentDto stud, CancellationToken ct)
+    public async Task<StudentResponseDto> CreateAsync(RegisterStudentDto stud, CancellationToken ct)
     {
 
         var student = new Student { RegistrationNumber = stud.RegistrationNumber, Name = stud.Name, GPA = stud.GPA };

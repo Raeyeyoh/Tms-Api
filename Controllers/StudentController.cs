@@ -21,7 +21,7 @@ public class StudentController(IStudentService studentservice) : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> AddStudentAsync(CreateStudentDto request, CancellationToken ct)
+    public async Task<IActionResult> AddStudentAsync(RegisterStudentDto request, CancellationToken ct)
     {
         var studentExists = await studentservice.CodeExistsAsync(request.RegistrationNumber, ct);
         if (studentExists)
