@@ -3,9 +3,7 @@ using Scalar.AspNetCore;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.EntityFrameworkCore;
 using TmsApi.Data;
-using TmsApi.Entities;
-using TmsApi.Models;
-using System.Linq;
+
 using TmsApi.Filters;
 using TmsApi.Persistence;
 using TmsApi.Services;

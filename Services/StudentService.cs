@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TmsApi.Data;
 using TmsApi.Entities;
-using TmsApi.Models;
 
 using TmsApi.Dtos;
 
@@ -26,7 +25,6 @@ public interface IStudentService
 public class StudentService : IStudentService
 {
 
-    private readonly Dictionary<string, StudentModel> _store = new();
     private readonly ILogger<StudentService> _logger;
     private readonly TmsDbContext _context;
     public StudentService(ILogger<StudentService> logger, TmsDbContext context)
