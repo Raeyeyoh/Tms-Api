@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Microsoft.AspNetCore.Mvc;
 
 using TmsApi.Dtos;
@@ -7,26 +8,88 @@ namespace TmsApi.Controllers;
 
 [ApiController]
 [Route("api/courses")]
-public class CourseController(ICourseService courseService) : ControllerBase
+[Tags("Courses")]
+[Produces("application/json")]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+public class CourseController(ICourseService courseService, LinkGenerator linkGenerator) : ControllerBase
 {
     [HttpGet]
+    [ProducesResponseType(typeof(PagedResponse<CourseResponseDto>), StatusCodes.Status200OK)]
+    [EndpointSummary("List courses with pagination")]
+    [EndpointDescription("Returns a paginated, optionally filtered listof TMS courses.PageSize is capped at 50.")]
     public async Task<IActionResult> GetCourses(
-[FromQuery] PagedRequest request, CancellationToken ct)
+        [FromQuery] PagedRequest request, CancellationToken ct)
     {
 
         var result = await courseService.GetCoursesAsync(request, ct);
         return Ok(result);
     }
 
+
     [HttpGet("{id:int}", Name = nameof(GetCourseById))]
+    [ProducesResponseType(typeof(CourseDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [EndpointSummary("Get a course by ID")]
+    [EndpointDescription("Returns course details with HATEOAS links. Returns 404 if the course does not exist.")]
     public async Task<IActionResult> GetCourseById(int id, CancellationToken ct)
     {
-
         var course = await courseService.GetByIdAsync(id, ct);
-        return course is not null ? Ok(course) : NotFound();
+
+        if (course is null)
+            return NotFound();
+
+        var courseHref = linkGenerator.GetPathByName(
+            HttpContext,
+            nameof(GetCourseById),
+            new { id });
+
+        var enrollmentsHref = linkGenerator.GetPathByAction(
+            HttpContext,
+            action: nameof(EnrollmentsController.GetEnrollments),
+            controller: "Enrollments",
+            values: new { courseId = id });
+        var enrollmentsHref2 = linkGenerator.GetPathByAction(
+            HttpContext,
+            action: "EnrollStudent",
+            controller: "Enrollments",
+            values: new { courseId = id });
+
+        var links = new List<LinkDto>
+    {
+        new(courseHref, "self", "GET"),
+        new(courseHref, "update", "PUT"),
+        new(courseHref, "delete", "DELETE"),
+        new(enrollmentsHref, "enrollments", "GET")
+    };
+
+        if (course.EnrollmentCount < course.MaxCapacity)
+        {
+            links.Add(
+                new LinkDto(
+                    enrollmentsHref2!,
+                    "enroll",
+                    "POST"));
+        }
+
+        var detail = new CourseDetailDto
+        {
+            Id = course.Id,
+            Code = course.Code,
+            Title = course.Title,
+            MaxCapacity = course.MaxCapacity,
+            EnrollmentCount = course.EnrollmentCount,
+            Links = links
+        };
+
+        return Ok(detail);
     }
 
     [HttpPost]
+    [ProducesResponseType(typeof(CourseResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [EndpointSummary("Create a new course")]
+    [EndpointDescription("Creates a course with a unique code. Returns409 if the course code already exists.")]
     public async Task<IActionResult> CreateCourse(CreateCourseRequest request, CancellationToken ct)
     {
 
@@ -51,10 +114,29 @@ public class CourseController(ICourseService courseService) : ControllerBase
 
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id)
+    [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+
+    [EndpointSummary("Delete a course by ID")]
+    [EndpointDescription("Deletes a course by its ID. Returns 404 if the course is not found.")]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
-        var deleted = await courseService.DeleteAsync(id);
-        return deleted ? NoContent() : NotFound();
+        var course = await courseService.GetByIdAsync(id, ct);
+        if (course is null)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Title = "Course not found",
+                Detail = $"No course with ID '{id}' was found.",
+                Status = StatusCodes.Status404NotFound
+            });
+
+        }
+        await courseService.DeleteAsync(id);
+
+        return NoContent();
+
     }
+
 
 }

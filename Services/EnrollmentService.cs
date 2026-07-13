@@ -2,10 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using TmsApi.Data;
 using TmsApi.Dtos;
 using TmsApi.Entities;
-using TmsApi.Models;
 public interface IEnrollmentService
 {
     Task<EnrollmentResponseDto?> GetByIdAsync(int courseId, int id, CancellationToken ct);
+    Task<EnrollmentResponseDto?> GetEnrollmentByIdAsync(int courseId, CancellationToken ct);
+
     Task<EnrollmentResponseDto> CreateAsync(int courseId, EnrollStudentRequest request, CancellationToken ct);
     Task<IReadOnlyList<Enrollment>> GetAllAsync();
     Task<bool> DeleteAsync(int id);
@@ -80,6 +81,14 @@ public class EnrollmentService : IEnrollmentService
 
         return enrollments > 0;
     }
+
+    public Task<EnrollmentResponseDto?> GetEnrollmentByIdAsync(int courseId, CancellationToken ct)
+    => _context.Enrollments
+ .AsNoTracking()
+ .Where(e => e.CourseId == courseId)
+ .Select(e => new EnrollmentResponseDto(e.Id, e.CourseId, e.StudentId, e.EnrolledAt))
+ .FirstOrDefaultAsync(ct);
+
 }
 
 public class TmsDatabaseException(string message) : Exception(message);

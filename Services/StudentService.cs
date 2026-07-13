@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TmsApi.Data;
 using TmsApi.Entities;
-using TmsApi.Models;
 
 using TmsApi.Dtos;
 
@@ -13,7 +12,7 @@ public interface IStudentService
     Task<StudentResponseDto?> GetByIdAsync(int id, CancellationToken ct);
     Task<PagedResponse<StudentResponseDto>> GetStudentsAsync(PagedRequest request, CancellationToken ct);
     Task<bool> DeleteStudentAsync(int id);
-    Task<bool> UpdateStudentAsync(int id, string name, decimal gpa, uint version, CancellationToken ct);
+    Task<bool> UpdateStudentAsync(UpdatestudentRequest request, CancellationToken ct);
     Task<IActionResult?> SoftDelteAsync(int id, CancellationToken ct);
     Task<IReadOnlyList<StudentResponseDto?>> ShowDeletedAsync();
     Task<bool> CodeExistsAsync(string registrationNumber, CancellationToken ct);
@@ -26,7 +25,6 @@ public interface IStudentService
 public class StudentService : IStudentService
 {
 
-    private readonly Dictionary<string, StudentModel> _store = new();
     private readonly ILogger<StudentService> _logger;
     private readonly TmsDbContext _context;
     public StudentService(ILogger<StudentService> logger, TmsDbContext context)
@@ -135,20 +133,20 @@ public class StudentService : IStudentService
 
     }
 
-    public async Task<bool> UpdateStudentAsync(int id, string name, decimal gpa, uint version, CancellationToken ct)
+    public async Task<bool> UpdateStudentAsync(UpdatestudentRequest request, CancellationToken ct)
     {
-        var student = await _context.Students.FirstOrDefaultAsync(s => s.Id == id, ct);
+        var student = await _context.Students.FirstOrDefaultAsync(s => s.Id == request.IdNo, ct);
         if (student == null)
         { return false; }
 
-        student.Name = name;
-        student.GPA = gpa;
+        student.Name = request.Name;
+        student.GPA = request.Gpa;
         _context.Entry(student)
             .Property("LastUpdated")
             .CurrentValue = DateTime.UtcNow;
         _context.Entry(student)
     .Property(s => s.Version)
-    .OriginalValue = version;
+    .OriginalValue = request.Version;
 
         await _context.SaveChangesAsync(ct);
         return true;

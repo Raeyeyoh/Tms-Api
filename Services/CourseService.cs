@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using TmsApi.Data;
 using TmsApi.Dtos;
 using TmsApi.Entities;
-using TmsApi.Models;
 
 namespace TmsApi.Services;
 
@@ -10,7 +9,6 @@ public interface ICourseService
 {
     Task<CourseResponseDto> CreateAsync(CreateCourseRequest course, CancellationToken ct);
     Task<CourseResponseDto?> GetByIdAsync(int id, CancellationToken ct);
-    //Task<IReadOnlyList<Course>> GetAllAsync();
     Task<bool> CodeExistsAsync(string code, CancellationToken ct);
 
     Task<bool> DeleteAsync(int id);
@@ -25,8 +23,6 @@ public class CourseService : ICourseService
 {
 
 
-
-    private readonly Dictionary<string, CourseModel> _store = new();
     private readonly TmsDbContext _context;
     private readonly ILogger<CourseService> _logger;
     public CourseService(ILogger<CourseService> logger, TmsDbContext context)
