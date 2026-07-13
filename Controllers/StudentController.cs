@@ -67,14 +67,10 @@ public class StudentController(IStudentService studentservice) : ControllerBase
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] UpdatestudentRequest req, CancellationToken ct)
     {
-        var student = await studentservice.UpdateStudentAsync(req.IdNo, req.Name, req.Gpa, req.Version, ct);
+        var student = await studentservice.UpdateStudentAsync(req, ct);
         return Ok(student);
     }
-    public record UpdatestudentRequest(
-        int IdNo,
-        string Name,
-        decimal Gpa,
-        uint Version);
+
     [ProducesResponseType(typeof(IEnumerable<StudentResponseDto>), StatusCodes.Status200OK)]
     [HttpGet("deleted")]
     public async Task<IActionResult> ShowDeleted()
