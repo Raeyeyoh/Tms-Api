@@ -4,7 +4,7 @@ using System;
 using System.Linq;
 using TmsApi.Data;
 using Microsoft.EntityFrameworkCore;
-namespace TmsApi.Controllers;
+namespace TmsApi.Controllers.V1;
 
 [ApiController]
 [Route("api/test")]
@@ -173,4 +173,12 @@ public class TestController(TmsDbContext context) : ControllerBase
         foreach (var s in students)
             Console.WriteLine($"{s.Name}: {s.Enrollments.Count} enrollments");
     }
+    // [HttpDelete("archive/{id}")]
+    // public async Task<IActionResult> Delete(int id)
+    // {
+
+    //     var deleted = await studentservice.DeleteStudentAsync(id);
+    //     return deleted ? NoContent() : NotFound();
+    // }
+
 }

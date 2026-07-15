@@ -22,7 +22,7 @@ public interface ICourseService
 public class CourseService : ICourseService
 {
 
-
+// should've been depended on just the interface shouldnt use dbcontext here should be on implementation of the repo here we mixed the implementaion of the repoand the service the implemention should be with the db wich is external infrastructure.
     private readonly TmsDbContext _context;
     private readonly ILogger<CourseService> _logger;
     public CourseService(ILogger<CourseService> logger, TmsDbContext context)
