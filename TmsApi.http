@@ -29,3 +29,5 @@ GET {{TmsApi_HostAddress}}/api/enrollments/3bcf3102
 ###
 GET {{TmsApi_HostAddress}}/api/error
 
+###
+GET {{TmsApi_HostAddress}}/api/V2/courses?page=1&pageSize=5

@@ -56,13 +56,6 @@ public class StudentController(IStudentService studentservice) : ControllerBase
 
     }
 
-    [HttpDelete("archive/{id}")]
-    public async Task<IActionResult> Delete(int id)
-    {
-
-        var deleted = await studentservice.DeleteStudentAsync(id);
-        return deleted ? NoContent() : NotFound();
-    }
 
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] UpdatestudentRequest req, CancellationToken ct)
@@ -84,8 +77,6 @@ public class StudentController(IStudentService studentservice) : ControllerBase
     [ProducesResponseType(typeof(void), StatusCodes.Status204NoContent)]
     [EndpointSummary("Soft delete a student by ID")]
     [EndpointDescription("Marks a student as deleted by its ID. Returns 404 if the student is not found.")]
-
-
     public async Task<IActionResult?> SoftDelete(int id, CancellationToken ct)
     {
         var student = await studentservice.GetByIdAsync(id, ct);
