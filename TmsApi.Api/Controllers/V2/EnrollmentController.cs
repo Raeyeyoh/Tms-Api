@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using TmsApi.Api.Hubs;
+using TmsApi.Application.Dtos;
 using TmsApi.Application.Enrollments.Commands;
 using TmsApi.Application.Enrollments.Queries;
 using TmsApi.Application.Hubs;
@@ -42,13 +43,16 @@ public class EnrollmentsController(IMediator mediator, IHubContext<TmsHub, ITmsH
             });
     }
     [HttpPut("{id:int}", Name = "approve")]
-    public async Task<IActionResult> Approve(int id, CancellationToken ct)
-
+    public async Task<ActionResult<EnrollmentResponseDto>> Approve(
+    int id,
+    CancellationToken ct)
     {
-        await enrollmentService.ApproveAsync(id, ct);
+        var enrollment = await enrollmentService.ApproveAsync(id, ct);
+
         await hubContext.Clients.All
- .ReceiveEnrollmentStatusUpdated(id, "Approved");
-        return NoContent();
+            .ReceiveEnrollmentStatusUpdated(id, "Approved");
+
+        return Ok(enrollment);
     }
 
     [HttpGet("{studentId}/schedule")]

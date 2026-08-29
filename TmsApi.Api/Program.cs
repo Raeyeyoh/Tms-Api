@@ -9,6 +9,7 @@ using TmsApi.Infrastructure.Services;
 using TmsApi.Api.Filters;
 using TmsApi.Api.Middleware;
 using TmsApi.Api.Options;
+using TmsApi.Api.Authorization;
 using TmsApi.Infrastructure.Persistence.Data;
 using TmsApi.Application.Enrollments.Commands;
 using FluentValidation;
@@ -28,6 +29,13 @@ using TmsApi.Api.Hubs;
 using TmsApi.Application.Notifications;
 using TmsApi.Api.Notifications;
 using Microsoft.AspNetCore.Antiforgery;
+using TmsApi.Infrastructure.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Text;
+using Microsoft.AspNetCore.Authorization;
+//using TmsApi.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -131,7 +139,7 @@ builder.Services.AddRateLimiter(options =>
 
     };
 });
-builder.Services.AddAuthentication("Training").AddScheme<AuthenticationSchemeOptions, TrainingAuthHandler>("Training", null);
+//builder.Services.AddAuthentication("Training").AddScheme<AuthenticationSchemeOptions, TrainingAuthHandler>("Training", null);
 builder.Services.AddAuthorization();
 //builder.Services.AddExceptionHandler();
 //builder.Services.AddScoped<EnrollmentWorker>();
@@ -149,10 +157,59 @@ builder.Host.UseDefaultServiceProvider(options =>
 });
 
 
+builder.Services.AddIdentityCore<TmsUser>(options =>
+{
+    options.Password.RequiredLength = 12;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireDigit = true;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    options.Lockout.AllowedForNewUsers = true;
+})
+.AddRoles<IdentityRole>()
+.AddEntityFrameworkStores<TmsDbContext>();
 
 builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-XSRF-TOKEN";
+});
+builder.Services.AddScoped<TokenService>();
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme =
+    JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme =
+    JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(
+                builder.Configuration["Jwt:Key"]!
+            ))
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            context.Token =
+                context.Request.Cookies["access_token"];
+
+            return Task.CompletedTask;
+        }
+    };
 });
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
@@ -184,24 +241,31 @@ new HeaderApiVersionReader("X-Api-Version"));
 });
 builder.Services.AddMediatR(cfg =>
 cfg.RegisterServicesFromAssembly(typeof(EnrollStudentHandler).Assembly));
+
+builder.Services.AddAuthorizationBuilder()
+.AddPolicy("CanEditCourse", policy =>
+policy.Requirements.Add(new CourseInstructorRequirement()));
+builder.Services.AddSingleton<IAuthorizationHandler, CourseInstructorHandler>();
+
+
 builder.Services.AddValidatorsFromAssembly(typeof(EnrollStudentValidator).Assembly);
-// LoggingBehavior FIRST—it must wrap ValidationBehavior
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
 builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-builder.Services.AddRateLimiter(options =>
-{
-    // ... GlobalLimiter from Step 2 stays as-is ...
-    options.AddConcurrencyLimiter("transcripts", opt =>
-    {
-        opt.PermitLimit = 5;
 
-        opt.QueueLimit = 20;
-        // 5 in-flight transcripts maximum
-        // queue up to 20 more
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-    });
-});
+// builder.Services.AddRateLimiter(options =>
+// {
+//     // ... GlobalLimiter from Step 2 stays as-is ...
+//     options.AddConcurrencyLimiter("transcripts", opt =>
+//     {
+//         opt.PermitLimit = 5;
+
+//         opt.QueueLimit = 20;
+//         // 5 in-flight transcripts maximum
+//         // queue up to 20 more
+//         opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+//     });
+// });
 var allowedOrigins = builder.Configuration
 .GetSection("AllowedOrigins").Get<string[]>()
 ?? ["http://localhost:4200"];
@@ -216,6 +280,15 @@ builder.Services.AddCors(options =>
             .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
     });
 });
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("AuthLimiter", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+});
 builder.Services.AddSingleton<ITranscriptStatusStore, InMemoryTranscriptStatusStore>();
 builder.Services.AddProblemDetails();
 var app = builder.Build();
@@ -228,15 +301,25 @@ app.MapHub<TmsHub>("/hubs/tms").RequireCors("TmsClient");
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors("TmsClient");
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("X-Content-Type-Options",
+    "nosniff");
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.Append(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self'; style-src 'self 'unsafe-inline'; ");
+    await next();
+});
 
 app.UseRateLimiter();
 app.UseStatusCodePages();
-app.UseAuthentication();
-app.UseAuthorization();
+
 app.Use(async (context, next) =>
 {
-    if (context.User.Identity?.IsAuthenticated == true || context.
-    Request.Cookies.ContainsKey("tms_auth"))
+    if (context.User.Identity?.IsAuthenticated == true)
+    //   || context. Request.Cookies.ContainsKey("tms_auth")
     {
         var antiforgery = context.RequestServices
         .GetRequiredService<IAntiforgery>();
@@ -251,28 +334,17 @@ app.Use(async (context, next) =>
     }
     await next(context);
 });
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseMiddleware<V1DeprecationMiddleware>();
 app.MapControllers();
 
-app.MapGet("/api/error", () =>
-{
-    throw new TmsDatabaseException("Simulated database failure for ProblemDetails testing");
-});
-// app.MapGet("/api/assessments/results", () => Results.Ok(new
-// {
-//     courseCode = "CS-101",
-//     studentId = "S-001",
-//     letterGrade = "A"
-// })).RequireAuthorization();
 
-// app.MapPost("/api/enrollments", async (string studentId, string courseCode, IEnrollmentService svc) =>
-// {var record = await svc.EnrollAsync(studentId, courseCode);
-// });
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<TmsDbContext>();
-    await DataSeeder.SeedAsync(context);
+    //await DataSeeder.SeedAsync(context);
     app.MapOpenApi();
     app.MapScalarApiReference(options =>
     {
@@ -285,6 +357,16 @@ if (app.Environment.IsDevelopment())
         .AddDocument("v2", "API Version 2.0");
     });
 
+    var service = new CryptoDemoService();
+    string hash1 = service.HashUserPassword("Password123!");
+    string hash2 = service.HashUserPassword("Password123!");
+    Console.WriteLine($"Hash 1: {hash1}");
+    Console.WriteLine($"Hash 2: {hash2}");
+    bool match1 = service.VerifyUserPassword("Password123!", hash1);
+    bool match2 = service.VerifyUserPassword("Password123!", hash2);
+    Console.WriteLine($"Match 1: {match1}");
+    Console.WriteLine($"Match 2: {match2}");
+
     Console.WriteLine("Running in development mode");
 }
 if (app.Environment.IsProduction())
@@ -292,6 +374,20 @@ if (app.Environment.IsProduction())
     Console.WriteLine("Running in production mode");
     app.UseExceptionHandler();
 }
+// app.MapGet("/api/error", () =>
+// {
+//     throw new TmsDatabaseException("Simulated database failure for ProblemDetails testing");
+// });
+// app.MapGet("/api/assessments/results", () => Results.Ok(new
+// {
+//     courseCode = "CS-101",
+//     studentId = "S-001",
+//     letterGrade = "A"
+// })).RequireAuthorization();
+
+// app.MapPost("/api/enrollments", async (string studentId, string courseCode, IEnrollmentService svc) =>
+// {var record = await svc.EnrollAsync(studentId, courseCode);
+// });
 //app.UseRateLimiter(4);
 // using (var scope = app.Services.CreateScope())
 // {
