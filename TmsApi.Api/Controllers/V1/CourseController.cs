@@ -10,6 +10,7 @@ namespace TmsApi.Api.Controllers.V1;
 [ApiController]
 [Route("api/v{version:apiVersion}/courses")]
 [ApiVersion("1.0")]
+
 public class CoursesController(TmsDbContext context) : ControllerBase
 {
     [HttpGet]
